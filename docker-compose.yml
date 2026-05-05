@@ -1,0 +1,27 @@
+services:
+  znuny:
+    build: .
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - znuny_certs:/etc/ssl/znuny
+    environment:
+      ZNUNY_FQDN: znuny-container
+      ZNUNY_DB_HOST: mariadb
+      ZNUNY_DB_NAME: znuny
+      ZNUNY_DB_USER: app_znuny
+      ZNUNY_DB_PASSWORD: znunypassword
+      MYSQL_ROOT_PASSWORD: rootpassword
+      ZNUNY_ROOT_PASSWORD: changeme
+  mariadb:
+    image: mariadb:12.2
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_USER: app_znuny
+      MARIADB_PASSWORD: znunypassword
+    volumes:
+      - ./mariadb_data:/var/lib/mysql
+      - ./mariadb:/etc/mysql/conf.d
+volumes:
+  znuny_certs:
