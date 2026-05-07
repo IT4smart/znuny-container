@@ -45,3 +45,5 @@ jobs:
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           tags: |
             ghcr.io/it4smart/${{ github.event.repository.name }}:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.source="https://github.com/IT4smart/znuny-container"

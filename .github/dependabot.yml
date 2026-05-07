@@ -1,0 +1,55 @@
+version: 2
+updates:
+  # Docker image updates
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "raphael.lekies@it4smart.com"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(docker):"
+      prefix-development: "chore(docker):"
+      include: "scope"
+
+  # Docker Compose updates
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:30"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "raphael.lekies@it4smart.com"
+    labels:
+      - "dependencies"
+      - "docker-compose"
+    commit-message:
+      prefix: "chore(docker-compose):"
+      prefix-development: "chore(docker-compose):"
+      include: "scope"
+
+  # GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "raphael.lekies@it4smart.com"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(actions):"
+      prefix-development: "chore(actions):"
+      include: "scope"
