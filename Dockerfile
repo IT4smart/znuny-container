@@ -51,6 +51,7 @@ RUN apt-get update \
         openssl \
         libcap2-bin \
         mariadb-client \
+        sendmail-bin \
     && curl -fsSL https://download.znuny.org/releases/znuny-${ZNUNY_VERSION}.tar.gz --output /tmp/znuny.tar.gz \
     && tar -xzf /tmp/znuny.tar.gz -C /opt/znuny --strip-components=1 \
     && cp /opt/znuny/Kernel/Config.pm.dist /opt/znuny/Kernel/Config.pm \
