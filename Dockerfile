@@ -4,8 +4,10 @@ LABEL maintainer="Raphael Lekies <raphael.lekies@it4smart.com> (IT4Smart GmbH)"
 
 ENV ZNUNY_VERSION=7.3.1
 ENV ZNUNY_ROOT=/opt/znuny/
+ENV ZNUNY_CONFIG_MOUNT_DIR "/Kernel"
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /opt/znuny
@@ -51,7 +53,6 @@ RUN apt-get update \
         openssl \
         libcap2-bin \
         mariadb-client \
-        sendmail-bin \
     && curl -fsSL https://download.znuny.org/releases/znuny-${ZNUNY_VERSION}.tar.gz --output /tmp/znuny.tar.gz \
     && tar -xzf /tmp/znuny.tar.gz -C /opt/znuny --strip-components=1 \
     && cp /opt/znuny/Kernel/Config.pm.dist /opt/znuny/Kernel/Config.pm \
@@ -87,6 +88,7 @@ RUN a2enconf apache-logging \
     && chown -R znuny:znuny /etc/ssl/znuny /etc/apache2/sites-available /etc/apache2/sites-enabled /tmp/supervisor \
     && chmod 755 /etc/ssl/znuny /etc/apache2/sites-available /etc/apache2/sites-enabled /tmp/supervisor \
     && chmod 1777 /run \
+    && mv /opt/znuny/Kernel /Kernel \
     && chown -R znuny:znuny /var/log/apache2 \
     && ln -sf /dev/stdout /var/log/apache2/access.log \
     && ln -sf /dev/stderr /var/log/apache2/error.log \

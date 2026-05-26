@@ -103,6 +103,7 @@ function setup_znuny_config() {
   [ ! -z "${ZNUNY_SMTP_PORT}" ] && add_config_value "SendmailModule::Port" "${ZNUNY_SMTP_PORT}"
   [ ! -z "${ZNUNY_SMTP_USERNAME}" ] && add_config_value "SendmailModule::AuthUser" "${ZNUNY_SMTP_USERNAME}"
   [ ! -z "${ZNUNY_SMTP_PASSWORD}" ] && add_config_value "SendmailModule::AuthPassword" "${ZNUNY_SMTP_PASSWORD}" true
+  [ ! -z "${ZNUNY_SAML2_USERIDATTRIBUTE}" ] && add_config_value "SAML2::UserIDAttribute" "${ZNUNY_SAML2_USERIDATTRIBUTE}"
   add_config_value "SecureMode" "1"
   # Configure automatic backups
   #setup_backup_cron
