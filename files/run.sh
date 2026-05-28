@@ -6,9 +6,6 @@ wait_for_db
 
 print_info "Starting \e[${ZNUNY_ASCII_COLOR_BLUE}m Znuny\e[0m \e[31m${ZNUNY_VERSION}\e[0m \e[${ZNUNY_ASCII_COLOR_BLUE}mCommunity Edition\e[0m \e[0m\n"
 
-# Ensure configuration is up to date with latest defaults and environment variables
-setup_znuny_config
-
 if [ -e "${ZNUNY_ROOT}var/tmp/firsttime" ]; then
     #Load default install
     load_defaults
@@ -16,6 +13,9 @@ if [ -e "${ZNUNY_ROOT}var/tmp/firsttime" ]; then
     print_info "Setting password for default admin account \e[${ZNUNY_ASCII_COLOR_BLUE}mroot@localhost\e[0m to: \e[31m**********\e[0m"
     ${ZNUNY_ROOT}bin/znuny.Console.pl Admin::User::SetPassword root@localhost ${ZNUNY_ROOT_PASSWORD}
 fi
+
+# Ensure configuration is up to date with latest defaults and environment variables
+setup_znuny_config
 
 # Only adjust permissions if ZNUNY_SET_PERMISSIONS == yes
 if [ "${ZNUNY_SET_PERMISSIONS}" == "yes" ]; then
