@@ -14,6 +14,7 @@ WORKDIR /opt/znuny
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        locales \
         apache2 \
         tar \
         libapache2-mod-perl2 \
@@ -54,19 +55,27 @@ RUN apt-get update \
         libcap2-bin \
         mariadb-client \
         libxml2-dev \
+        pkg-config \
+        build-essential \
+        zlib1g-dev \
+        libexpat1-dev \
         xmlsec1 \
         libxmlsec1-dev \
         cpanminus \
-    && cpanm Net::SAML2 XML::Sec XML::LibXML \
+        make \
+    && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
+    && locale-gen \
+    && cpanm Net::SAML2@0.85 \
+    && cpanm XML::LibXML@2.0213 \
     && curl -fsSL https://download.znuny.org/releases/znuny-${ZNUNY_VERSION}.tar.gz --output /tmp/znuny.tar.gz \
     && tar -xzf /tmp/znuny.tar.gz -C /opt/znuny --strip-components=1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && ls -l /opt/znuny \
     && cp /opt/znuny/Kernel/Config.pm.dist /opt/znuny/Kernel/Config.pm \
     && useradd -r -m -d /opt/znuny -c "ZNUNY user" -G www-data znuny \
     && /opt/znuny/bin/otrs.CheckModules.pl || true \
-    && /opt/znuny/bin/znuny.SetPermissions.pl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && ln -s /opt/znuny/scripts/apache2-httpd.include.conf /etc/apache2/conf-available/znuny.conf \
+    && install -Dm644 /opt/znuny/scripts/apache2-httpd.include.conf /etc/apache2/conf-available/znuny.conf \
     && sed -i 's/DirectoryIndex index.html/DirectoryIndex index.pl index.html/' /etc/apache2/mods-enabled/dir.conf \
     && a2dismod mpm_event \
     && a2enmod mpm_prefork headers filter perl \
