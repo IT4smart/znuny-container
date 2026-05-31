@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run Dockerfile linter
-        uses: hadolint/hadolint-action@v2
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: Dockerfile
 
@@ -44,6 +44,6 @@ jobs:
           file: Dockerfile
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           tags: |
-            ghcr.io/it4smart/${{ github.event.repository.name }}:${{ github.ref_name }}
+            ghcr.io/it4smart/${{ github.event.repository.name }}:${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.sha }}
           labels: |
             org.opencontainers.image.source="https://github.com/IT4smart/znuny-container"

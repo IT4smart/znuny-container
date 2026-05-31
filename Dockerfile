@@ -56,6 +56,7 @@ RUN apt-get update \
         libxml2-dev \
         xmlsec1 \
         libxmlsec1-dev \
+        cpanminus \
     && cpanm Net::SAML2 XML::Sec XML::LibXML \
     && curl -fsSL https://download.znuny.org/releases/znuny-${ZNUNY_VERSION}.tar.gz --output /tmp/znuny.tar.gz \
     && tar -xzf /tmp/znuny.tar.gz -C /opt/znuny --strip-components=1 \
