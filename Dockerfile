@@ -61,17 +61,16 @@ RUN apt-get update \
         libexpat1-dev \
         xmlsec1 \
         libxmlsec1-dev \
+        perl-dev \
         cpanminus \
         make \
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
     && locale-gen \
     && cpanm Net::SAML2@0.85 \
-    && cpanm XML::LibXML@2.0213 \
     && curl -fsSL https://download.znuny.org/releases/znuny-${ZNUNY_VERSION}.tar.gz --output /tmp/znuny.tar.gz \
     && tar -xzf /tmp/znuny.tar.gz -C /opt/znuny --strip-components=1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && ls -l /opt/znuny \
     && cp /opt/znuny/Kernel/Config.pm.dist /opt/znuny/Kernel/Config.pm \
     && useradd -r -m -d /opt/znuny -c "ZNUNY user" -G www-data znuny \
     && /opt/znuny/bin/otrs.CheckModules.pl || true \
