@@ -1,14 +1,14 @@
 FROM debian:bookworm-slim
 
-LABEL maintainer="Raphael Lekies <raphael.lekies@it4smart.com> (IT4Smart GmbH)"
+LABEL maintainer="Raphael Lekies <raphael.lekies@it4smart.com> (IT4smart GmbH)"
 
-ENV ZNUNY_VERSION=7.3.1
-ENV ZNUNY_ROOT=/opt/znuny/
+ENV ZNUNY_VERSION 7.3.1
+ENV ZNUNY_ROOT "/opt/znuny/"
 ENV ZNUNY_CONFIG_MOUNT_DIR "/Kernel"
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US.UTF-8
-ENV LC_ALL=en_US.UTF-8
-ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+ENV DEBIAN_FRONTEND noninteractive
 
 WORKDIR /opt/znuny
 
@@ -53,10 +53,14 @@ RUN apt-get update \
         openssl \
         libcap2-bin \
         mariadb-client \
+        libxml2-dev \
+        xmlsec1 \
+        libxmlsec1-dev \
+    && cpanm Net::SAML2 XML::Sec XML::LibXML \
     && curl -fsSL https://download.znuny.org/releases/znuny-${ZNUNY_VERSION}.tar.gz --output /tmp/znuny.tar.gz \
     && tar -xzf /tmp/znuny.tar.gz -C /opt/znuny --strip-components=1 \
     && cp /opt/znuny/Kernel/Config.pm.dist /opt/znuny/Kernel/Config.pm \
-    &&  useradd -r -m -d /opt/znuny -c "ZNUNY user" -G www-data znuny \
+    && useradd -r -m -d /opt/znuny -c "ZNUNY user" -G www-data znuny \
     && /opt/znuny/bin/otrs.CheckModules.pl || true \
     && /opt/znuny/bin/znuny.SetPermissions.pl \
     && apt-get clean \
