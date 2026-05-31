@@ -35,7 +35,7 @@ jobs:
       - name: Wait for Znuny web interface
         run: |
           for i in $(seq 1 30); do
-            status=$(curl -s -o /tmp/znuny-response.html -w '%{http_code}' http://127.0.0.1:18080/znuny/index.pl || true)
+            status=$(curl -s -o /tmp/znuny-response.html -w '%{http_code}' http://127.0.0.1/znuny/index.pl || true)
             if [ "$status" = "200" ] && grep -qE 'Znuny|znuny' /tmp/znuny-response.html; then
               echo "Znuny web interface is reachable"
               exit 0
@@ -50,7 +50,7 @@ jobs:
       - name: Verify SAML2 metadata endpoint
         run: |
           for i in $(seq 1 30); do
-            status=$(curl -k -s -o /tmp/znuny-saml-metadata.html -w '%{http_code}' http://127.0.0.1:18080/saml/metadata || true)
+            status=$(curl -k -s -o /tmp/znuny-saml-metadata.html -w '%{http_code}' http://127.0.0.1/saml/metadata || true)
             if [ "$status" = "200" ] && grep -q "EntityDescriptor" /tmp/znuny-saml-metadata.html; then
               echo "SAML2 metadata endpoint is available"
               exit 0
