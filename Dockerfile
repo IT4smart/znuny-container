@@ -61,7 +61,6 @@ RUN apt-get update \
         libexpat1-dev \
         xmlsec1 \
         libxmlsec1-dev \
-        perl-dev \
         cpanminus \
         make \
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
