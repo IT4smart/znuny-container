@@ -104,7 +104,9 @@ RUN a2enconf apache-logging \
     && chown -R znuny:znuny /var/log/apache2 \
     && ln -sf /dev/stdout /var/log/apache2/access.log \
     && ln -sf /dev/stderr /var/log/apache2/error.log \
-    && chown -R znuny:znuny /var/run/apache2
+    && chown -R znuny:znuny /var/run/apache2 \
+    && chown -R znuny:znuny /opt/znuny \
+    && chmod 755 /opt/znuny
 
 USER znuny
 
