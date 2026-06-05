@@ -26,20 +26,20 @@ function cleanup () {
 }
 
 DATE=$(get_current_date)
-BACKUP_FILE_NAME="otrs-${DATE}-${BACKUP_TYPE}.tar.gz"
+BACKUP_FILE_NAME="znuny-${DATE}-${BACKUP_TYPE}.tar.gz"
 
-echo -e "[${DATE}] Starting OTRS backup for host ${ZNUNY_HOSTNAME}..."
+echo -e "[${DATE}] Starting ZNUNY backup for host ${ZNUNY_HOSTNAME}..."
 [ ! -e $TEMP_BACKUP_DIR ] && mkdir -p $TEMP_BACKUP_DIR
 
 
 [ "${BACKUP_STOP_SERVICES}" == "yes" ] && stop_all_services
 
-/opt/otrs/scripts/backup.pl -d $TEMP_BACKUP_DIR -t $BACKUP_TYPE -r $BACKUP_ROTATION_DAYS -c $BACKUP_COMPRESSION_METHOD
+/opt/znuny/scripts/backup.pl -d $TEMP_BACKUP_DIR -t $BACKUP_TYPE -r $BACKUP_ROTATION_DAYS -c $BACKUP_COMPRESSION_METHOD
 
 if [ $? -eq 0 ]; then
   [ ! -e $ZNUNY_BACKUP_DIR ] && mkdir -p $ZNUNY_BACKUP_DIR
   cd ${TEMP_BACKUP_DIR}
-  # As the otrs backup command throws three separate backups in a directory, we
+  # As the znuny backup command throws three separate backups in a directory, we
   # compress those files into a single one
   tar zcvf ${ZNUNY_BACKUP_DIR}/${BACKUP_FILE_NAME} *
   [ $? -gt 0 ] && echo -e "ERROR: Could not compress final backup tarball." && exit 1

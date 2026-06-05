@@ -249,15 +249,15 @@ function not_allowed_pkgs_install() {
 function stop_all_services () {
   print_info "Stopping all OTRS services..."
   supervisorctl stop all
-  su -c "${ZNUNY_ROOT}/bin/Cron.sh stop" -s /bin/bash otrs
-  su -c "${ZNUNY_ROOT}/bin/otrs.Daemon.pl stop" -s /bin/bash otrs
+  ${ZNUNY_ROOT}/bin/Cron.sh stop
+  ${ZNUNY_ROOT}/bin/otrs.Daemon.pl stop
 }
 
 function start_all_services () {
   print_info "Starting all OTRS services..."
   supervisorctl start all
-  su -c "${ZNUNY_ROOT}/bin/otrs.Daemon.pl start" -s /bin/bash otrs
-  su -c "${ZNUNY_ROOT}/bin/Cron.sh start" -s /bin/bash otrs
+  ${ZNUNY_ROOT}/bin/otrs.Daemon.pl start
+  ${ZNUNY_ROOT}/bin/Cron.sh start
 }
 
 function setup_backup_cron() {
