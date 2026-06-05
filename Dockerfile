@@ -93,6 +93,7 @@ COPY files/znuny-site.conf /etc/apache2/sites-available/znuny-site.conf
 COPY files/run.sh /run.sh
 COPY files/functions.sh /functions.sh
 COPY files/util_functions.sh /util_functions.sh
+COPY files/znuny_backup.sh /znuny_backup.sh
 
 RUN a2enconf apache-logging \
     && a2dissite 000-default default-ssl || true \

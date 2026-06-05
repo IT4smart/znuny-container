@@ -47,6 +47,25 @@ jobs:
           cat /tmp/znuny-response.html
           exit 1
 
+      - name: Test backup is correctly running
+        run: |
+          # Verify backup script exists and is executable
+          docker compose exec -T znuny test -x /znuny_backup.sh && echo "Backup script is executable"
+          
+          # Trigger a manual backup
+          echo "Triggering backup..."
+          docker compose exec -T znuny /znuny_backup.sh
+          
+          # Verify backup file was created
+          echo "Verifying backup file was created..."
+          if [ -f znuny_backups/otrs-*.tar.gz ]; then
+            echo "Backup file found:"
+            ls -lh znuny_backups/otrs-*.tar.gz
+          else
+            echo "ERROR: No backup file found in znuny_backups/"
+            exit 1
+          fi
+
       - name: Cleanup services
         if: always()
         run: docker compose down --remove-orphans
