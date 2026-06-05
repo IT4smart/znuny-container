@@ -6,6 +6,7 @@ services:
       - "443:8443"
     volumes:
       - znuny_certs:/etc/ssl/znuny
+      - './znuny_backups:/var/znuny/backups'
     environment:
       ZNUNY_FQDN: znuny-container
       ZNUNY_DB_HOST: mariadb

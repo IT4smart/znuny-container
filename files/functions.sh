@@ -18,6 +18,8 @@ ZNUNY_CONFIG_DIR="$ZNUNY_ROOT_DIR/Kernel"
 ZNUNY_CONFIG_FILE="$ZNUNY_CONFIG_DIR/Config.pm"
 ZNUNY_ASCII_COLOR_BLUE="38;5;31"
 ZNUNY_ASCII_COLOR_RED="31"
+ZNUNY_BACKUP_SCRIPT="${ZNUNY_BACKUP_SCRIPT:-/znuny_backup.sh}"
+ZNUNY_CRON_BACKUP_SCRIPT="${ZNUNY_CRON_BACKUP_SCRIPT:-/etc/cron.d/znuny_backup}"
 WAIT_TIMEOUT=2
 ZNUNY_ADDONS_PATH="${ZNUNY_ROOT}/addons/"
 INSTALLED_ADDONS_DIR="${ZNUNY_ADDONS_PATH}/installed"
@@ -33,6 +35,9 @@ INSTALLED_ADDONS_DIR="${ZNUNY_ADDONS_PATH}/installed"
 [ -z "${ZNUNY_ROOT_PASSWORD}" ] && print_info "\e[${ZNUNY_ASCII_COLOR_BLUE}mZNUNY_ROOT_PASSWORD\e[0m not set, setting password to \e[${ZNUNY_ASCII_COLOR_RED}m${DEFAULT_ZNUNY_ROOT_PASSWORD}\e[0m" && ZNUNY_ROOT_PASSWORD=${DEFAULT_ZNUNY_ROOT_PASSWORD}
 [ -z "${MYSQL_ROOT_PASSWORD}" ] && print_info "\e[${ZNUNY_ASCII_COLOR_BLUE}mMYSQL_ROOT_PASSWORD\e[0m not set, setting password to \e[${ZNUNY_ASCII_COLOR_RED}m${DEFAULT_MYSQL_ROOT_PASSWORD}\e[0m" && MYSQL_ROOT_PASSWORD=${DEFAULT_MYSQL_ROOT_PASSWORD}
 [ -z "${MYSQL_ROOT_USER}" ] && print_info "\e[${ZNUNY_ASCII_COLOR_BLUE}mMYSQL_ROOT_USER\e[0m not set, setting user to \e[${ZNUNY_ASCII_COLOR_RED}m${DEFAULT_MYSQL_ROOT_USER}\e[0m" && MYSQL_ROOT_USER=${DEFAULT_MYSQL_ROOT_USER}
+[ -z "${OTRS_BACKUP_TIME}" ] && print_info "\e[${OTRS_ASCII_COLOR_BLUE}mOTRS_BACKUP_TIME\e[0m not set, setting value to \e[${OTRS_ASCII_COLOR_RED}m${DEFAULT_OTRS_BACKUP_TIME}\e[0m" && OTRS_BACKUP_TIME=${DEFAULT_OTRS_BACKUP_TIME}
+[ ! -z "${OTRS_CRON_BACKUP_SCRIPT}" ] && print_info "\e[${OTRS_ASCII_COLOR_BLUE}mSetting OTRS_CRON_BACKUP_SCRIPT\e[0m to \e[${OTRS_ASCII_COLOR_RED}m${OTRS_CRON_BACKUP_SCRIPT}\e[0m"
+
 
 mysqlcmd="mysql -u${MYSQL_ROOT_USER} -h ${ZNUNY_DB_HOST} -P ${ZNUNY_DB_PORT} -p${MYSQL_ROOT_PASSWORD} "
 
@@ -106,7 +111,7 @@ function setup_znuny_config() {
   [ ! -z "${ZNUNY_SAML2_USERIDATTRIBUTE}" ] && add_config_value "SAML2::UserIDAttribute" "${ZNUNY_SAML2_USERIDATTRIBUTE}"
   add_config_value "SecureMode" "1"
   # Configure automatic backups
-  #setup_backup_cron
+  setup_backup_cron
   # Reinstall any existing addons
   reinstall_modules
 }
@@ -189,6 +194,20 @@ function install_modules () {
   fi
 }
 
+function check_custom_skins_dir() {
+  #Copy the default skins from /skins (put there by the Dockerfile) to $SKINS_PATH
+  #to be able to use host-mounted volumes.
+  print_info "Copying default skins..."
+  mkdir -p ${SKINS_PATH}
+  cp -rfp ${ZNUNY_SKINS_MOUNT_DIR}/* ${SKINS_PATH}
+  if [ $? -eq 0 ];
+    then
+      print_info "Done."
+    else
+      print_error "Can't copy default skins to ${SKINS_PATH}" && exit 1
+  fi
+}
+
 function reinstall_modules () {
   if [ "${ZNUNY_UPGRADE}" != "yes" ]; then
     print_info "Reinstalling ZNUNY addons..."
@@ -221,5 +240,46 @@ function not_allowed_pkgs_install() {
   ${ZNUNY_ROOT}bin/otrs.Console.pl Admin::Config::Update --setting-name Package::AllowNotVerifiedPackages --value=${_allow}
   if [ $? -gt 0  ]; then
     print_warning "Cannot enable Package::AllowNotVerifiedPackages"  | tee -a ${upgrade_log}
+  fi
+}
+
+function stop_all_services () {
+  print_info "Stopping all OTRS services..."
+  supervisorctl stop all
+  su -c "${ZNUNY_ROOT}/bin/Cron.sh stop" -s /bin/bash otrs
+  su -c "${ZNUNY_ROOT}/bin/otrs.Daemon.pl stop" -s /bin/bash otrs
+}
+
+function start_all_services () {
+  print_info "Starting all OTRS services..."
+  supervisorctl start all
+  su -c "${ZNUNY_ROOT}/bin/otrs.Daemon.pl start" -s /bin/bash otrs
+  su -c "${ZNUNY_ROOT}/bin/Cron.sh start" -s /bin/bash otrs
+}
+
+function setup_backup_cron() {
+  if [ "${ZNUNY_BACKUP_TIME}" != "" ] && [ "${ZNUNY_BACKUP_TIME}" != "disable" ]; then
+
+    # Store in a file env vars so they can be sourced from the backup cronjob
+    export -p | sed -e "s/\"/'/g" | grep -E "^declare -x ZNUNY_" > /.backup.env
+
+    # Set cron entry
+    print_info "Setting backup time to: ${ZNUNY_BACKUP_TIME}"
+
+    if [ ! -f ${ZNUNY_BACKUP_SCRIPT} ]; then
+      print_warning "Custom backup script: ${ZNUNY_BACKUP_SCRIPT} does not exist, using default one: ${DEFAULT_BACKUP_SCRIPT}"
+      ZNUNY_BACKUP_SCRIPT=${DEFAULT_BACKUP_SCRIPT}
+    fi
+
+    if [ ! -f ${ZNUNY_CRON_BACKUP_SCRIPT} ]; then
+      print_warning "Custom cron script: ${ZNUNY_CRON_BACKUP_SCRIPT} does not exist, creating default one: ${DEFAULT_ZNUNY_CRON_BACKUP_SCRIPT}"
+      ZNUNY_CRON_BACKUP_SCRIPT=${DEFAULT_ZNUNY_CRON_BACKUP_SCRIPT}
+    fi
+
+    echo "${ZNUNY_BACKUP_TIME} root . /.backup.env; ${ZNUNY_BACKUP_SCRIPT}" > ${ZNUNY_CRON_BACKUP_SCRIPT}
+
+  elif [ "${ZNUNY_BACKUP_TIME}" == "disable" ]; then
+    print_warning "Disabling automated backups !!"
+    rm /etc/cron.d/znuny_backup
   fi
 }

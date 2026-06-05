@@ -5,6 +5,8 @@ LABEL maintainer="Raphael Lekies <raphael.lekies@it4smart.com> (IT4smart GmbH)"
 ENV ZNUNY_VERSION 7.3.1
 ENV ZNUNY_ROOT "/opt/znuny/"
 ENV ZNUNY_CONFIG_MOUNT_DIR "/Kernel"
+ENV ZNUNY_SKINS_MOUNT_DIR "/skins/"
+ENV SKINS_PATH "${ZNUNY_ROOT}/var/httpd/htdocs/skins/"
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
@@ -101,6 +103,7 @@ RUN a2enconf apache-logging \
     && chmod 755 /etc/ssl/znuny /etc/apache2/sites-available /etc/apache2/sites-enabled /tmp/supervisor \
     && chmod 1777 /run \
     && mv /opt/znuny/Kernel /Kernel \
+    && mv /opt/znuny/var/httpd/htdocs/skins /skins \
     && chown -R znuny:znuny /var/log/apache2 \
     && ln -sf /dev/stdout /var/log/apache2/access.log \
     && ln -sf /dev/stderr /var/log/apache2/error.log \

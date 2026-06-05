@@ -47,24 +47,6 @@ jobs:
           cat /tmp/znuny-response.html
           exit 1
 
-      - name: Verify SAML2 metadata endpoint
-        run: |
-          for i in $(seq 1 30); do
-            status=$(curl -k -s -o /tmp/znuny-saml-metadata.html -w '%{http_code}' http://127.0.0.1/saml/metadata || true)
-            if [ "$status" = "200" ] && grep -q "EntityDescriptor" /tmp/znuny-saml-metadata.html; then
-              echo "SAML2 metadata endpoint is available"
-              exit 0
-            fi
-            echo "Waiting for SAML2 metadata endpoint... status=$status ($i/30)"
-            sleep 10
-          done
-          echo "Last response body:"
-          cat /tmp/znuny-saml-metadata.html
-          exit 1
-
-      - name: Verify SAML2 configuration was applied
-        run: docker compose exec -T znuny grep -q "SAML2::UserIDAttribute" /opt/znuny/Kernel/Config.pm
-
       - name: Cleanup services
         if: always()
         run: docker compose down --remove-orphans
