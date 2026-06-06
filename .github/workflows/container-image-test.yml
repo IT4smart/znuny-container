@@ -60,9 +60,9 @@ jobs:
           
           # Verify backup file was created
           echo "Verifying backup file was created..."
-          if [ -f znuny_backups/otrs-*.tar.gz ]; then
+          if [ -f znuny_backups/znuny-*.tar.gz ]; then
             echo "Backup file found:"
-            ls -lh znuny_backups/otrs-*.tar.gz
+            ls -lh znuny_backups/znuny-*.tar.gz
           else
             echo "ERROR: No backup file found in znuny_backups/"
             exit 1
