@@ -29,6 +29,8 @@ jobs:
 
       - name: Start services with docker-compose
         run: |
+          mkdir -p ./znuny_backups
+          chmod 777 ./znuny_backups
           docker compose down --remove-orphans || true
           docker compose up --build -d
 
@@ -51,7 +53,7 @@ jobs:
         run: |
           # Verify backup script exists and is executable
           docker compose exec -T znuny test -x /znuny_backup.sh && echo "Backup script is executable"
-          
+
           # Trigger a manual backup
           echo "Triggering backup..."
           docker compose exec -T znuny /znuny_backup.sh

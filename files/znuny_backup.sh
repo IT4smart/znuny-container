@@ -37,8 +37,18 @@ echo -e "[${DATE}] Starting ZNUNY backup for host ${ZNUNY_HOSTNAME}..."
 /opt/znuny/scripts/backup.pl -d $TEMP_BACKUP_DIR -t $BACKUP_TYPE -r $BACKUP_ROTATION_DAYS -c $BACKUP_COMPRESSION_METHOD
 
 if [ $? -eq 0 ]; then
-  [ ! -e $ZNUNY_BACKUP_DIR ] && mkdir -p $ZNUNY_BACKUP_DIR
-  cd ${TEMP_BACKUP_DIR}
+  if [ ! -e "$ZNUNY_BACKUP_DIR" ]; then
+    mkdir -p "$ZNUNY_BACKUP_DIR"
+  fi
+
+  if [ -d "$ZNUNY_BACKUP_DIR" ]; then
+    chmod 755 "$ZNUNY_BACKUP_DIR" 2>/dev/null || true
+    if [ "$(id -u)" -eq 0 ]; then
+      chown -R znuny:znuny "$ZNUNY_BACKUP_DIR" 2>/dev/null || true
+    fi
+  fi
+
+  cd "${TEMP_BACKUP_DIR}"
   # As the znuny backup command throws three separate backups in a directory, we
   # compress those files into a single one
   tar zcvf ${ZNUNY_BACKUP_DIR}/${BACKUP_FILE_NAME} *
