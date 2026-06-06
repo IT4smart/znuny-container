@@ -1,4 +1,9 @@
 # Copilot Instructions for znuny-container
+Znuny is an Open-Source Ticketing system which based on OTRS. This repository contains a Docker container image for Znuny, along with related scripts and configuration files.
+Sources: https://www.znuny.org/de
+Documentation: https://doc.znuny.org/
+
+Currently we only support non LTS releases of Znuny.
 
 ## Issue and Pull Request Workflow
 
