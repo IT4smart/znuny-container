@@ -9,7 +9,7 @@ updates:
       time: "03:00"
     open-pull-requests-limit: 10
     reviewers:
-      - "raphael.lekies@it4smart.com"
+      - "hack3d"
     labels:
       - "dependencies"
       - "docker"
@@ -27,7 +27,7 @@ updates:
       time: "03:30"
     open-pull-requests-limit: 10
     reviewers:
-      - "raphael.lekies@it4smart.com"
+      - "hack3d"
     labels:
       - "dependencies"
       - "docker-compose"
@@ -45,7 +45,7 @@ updates:
       time: "04:00"
     open-pull-requests-limit: 10
     reviewers:
-      - "raphael.lekies@it4smart.com"
+      - "hack3d"
     labels:
       - "dependencies"
       - "github-actions"

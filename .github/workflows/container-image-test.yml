@@ -1,0 +1,115 @@
+name: Container image runtime test
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - Dockerfile
+      - docker-compose.yml
+      - files/**
+  push:
+    branches:
+      - main
+
+jobs:
+  test-container:
+    name: Build and smoke test container image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Ensure Docker Compose is available
+        run: docker compose version
+
+      - name: Start services with docker-compose
+        run: |
+          mkdir -p ./znuny_backups
+          chmod 777 ./znuny_backups
+          docker compose down --remove-orphans || true
+          docker compose up --build -d
+
+      - name: Wait for Znuny web interface
+        run: |
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /tmp/znuny-response.html -w '%{http_code}' http://127.0.0.1/znuny/index.pl || true)
+            if [ "$status" = "200" ] && grep -qE 'Znuny|znuny' /tmp/znuny-response.html; then
+              echo "Znuny web interface is reachable"
+              exit 0
+            fi
+            echo "Waiting for Znuny web interface... status=$status ($i/30)"
+            sleep 10
+          done
+          echo "Last response body:"
+          cat /tmp/znuny-response.html
+          exit 1
+
+      - name: Verify non-root container requirement
+        run: |
+          echo "Testing non-root container requirement..."
+          
+          # Test 1: Verify container is running as znuny user
+          echo "Test 1: Checking main process user..."
+          USER=$(docker compose exec -T znuny whoami)
+          if [ "$USER" != "znuny" ]; then
+            echo "❌ FAILED: Container is running as '$USER' instead of 'znuny'"
+            exit 1
+          fi
+          echo "✅ PASSED: Container is running as znuny user"
+          
+          # Test 2: Verify no root processes are running (except minimal system processes)
+          echo "Test 2: Checking for root processes..."
+          ROOT_PROCS=$(docker compose exec -T znuny ps aux | grep "^\s*root" | grep -v "ps aux" | wc -l)
+          # Some root processes are expected (kernel threads, minimal system processes)
+          # But we should not have application processes running as root
+          APP_ROOT_PROCS=$(docker compose exec -T znuny ps aux | grep -E "^\s*root\s+[0-9]+\s+[0-9.]+\s+[0-9.]+\s+(apache|cron|supervisord)" | wc -l)
+          if [ "$APP_ROOT_PROCS" -gt 0 ]; then
+            echo "❌ FAILED: Application processes detected running as root:"
+            docker compose exec -T znuny ps aux | grep -E "^\s*root\s+[0-9]+\s+[0-9.]+\s+[0-9.]+\s+(apache|cron|supervisord)" || true
+            exit 1
+          fi
+          echo "✅ PASSED: No application processes running as root"
+          
+          # Test 3: Verify critical services are owned by znuny
+          echo "Test 3: Checking service ownership..."
+          docker compose exec -T znuny ps aux | grep -E "(apache2|cron|supervisord)" | while read line; do
+            if echo "$line" | grep -q "^\s*znuny"; then
+              echo "✅ Service running as znuny: $(echo $line | awk '{print $11}')"
+            elif echo "$line" | grep -qv "ps aux"; then
+              # Skip ps aux itself
+              SERVICE=$(echo $line | awk '{print $11}')
+              if [ -n "$SERVICE" ] && [ "$SERVICE" != "ps" ]; then
+                echo "⚠️  Warning: $SERVICE may not be running as znuny"
+              fi
+            fi
+          done
+          
+          echo "✅ Non-root container verification complete"
+
+      - name: Test backup is correctly running
+        run: |
+          # Verify backup script exists and is executable
+          docker compose exec -T znuny test -x /znuny_backup.sh && echo "Backup script is executable"
+
+          # Trigger a manual backup
+          echo "Triggering backup..."
+          docker compose exec -T znuny /znuny_backup.sh
+          
+          # Verify backup file was created
+          echo "Verifying backup file was created..."
+          if [ -f znuny_backups/znuny-*.tar.gz ]; then
+            echo "Backup file found:"
+            ls -lh znuny_backups/znuny-*.tar.gz
+          else
+            echo "ERROR: No backup file found in znuny_backups/"
+            exit 1
+          fi
+
+      - name: Cleanup services
+        if: always()
+        run: docker compose down --remove-orphans

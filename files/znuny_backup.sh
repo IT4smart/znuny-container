@@ -1,0 +1,68 @@
+#!/bin/bash
+#Backup script. It will make a full backup on a temp directory and then
+#move it to the container's mounted backup directory.
+#
+
+. /functions.sh
+
+TEMP_BACKUP_DIR=`mktemp -d`
+ZNUNY_BACKUP_DIR="/var/znuny/backups"
+BACKUP_COMPRESSION_METHOD="${ZNUNY_BACKUP_COMPRESSION:-gzip}"
+BACKUP_ROTATION_DAYS="${ZNUNY_BACKUP_ROTATION:-30}"
+BACKUP_TYPE="${ZNUNY_BACKUP_TYPE:-fullbackup}"
+BACKUP_STOP_SERVICES="${ZNUNY_BACKUP_STOP_SERVICES:-yes}"
+
+trap cleanup INT
+
+function get_current_date(){
+   date "+%Y-%m-%d_%H-%M"
+}
+
+# SIGTERM-handler
+function cleanup () {
+  echo -e "Cleaning up..."
+  rm -fr $TEMP_BACKUP_DIR
+  exit 143; # 128 + 15 -- SIGTERM
+}
+
+DATE=$(get_current_date)
+BACKUP_FILE_NAME="znuny-${DATE}-${BACKUP_TYPE}.tar.gz"
+
+echo -e "[${DATE}] Starting ZNUNY backup for host ${ZNUNY_HOSTNAME}..."
+[ ! -e $TEMP_BACKUP_DIR ] && mkdir -p $TEMP_BACKUP_DIR
+
+
+[ "${BACKUP_STOP_SERVICES}" == "yes" ] && stop_all_services
+
+/opt/znuny/scripts/backup.pl -d $TEMP_BACKUP_DIR -t $BACKUP_TYPE -r $BACKUP_ROTATION_DAYS -c $BACKUP_COMPRESSION_METHOD
+
+if [ $? -eq 0 ]; then
+  if [ ! -e "$ZNUNY_BACKUP_DIR" ]; then
+    mkdir -p "$ZNUNY_BACKUP_DIR"
+  fi
+
+  if [ -d "$ZNUNY_BACKUP_DIR" ]; then
+    chmod 755 "$ZNUNY_BACKUP_DIR" 2>/dev/null || true
+    if [ "$(id -u)" -eq 0 ]; then
+      chown -R znuny:znuny "$ZNUNY_BACKUP_DIR" 2>/dev/null || true
+    fi
+  fi
+
+  cd "${TEMP_BACKUP_DIR}"
+  # As the znuny backup command throws three separate backups in a directory, we
+  # compress those files into a single one
+  tar zcvf ${ZNUNY_BACKUP_DIR}/${BACKUP_FILE_NAME} *
+  [ $? -gt 0 ] && echo -e "ERROR: Could not compress final backup tarball." && exit 1
+  cd ..
+  chmod -R 755 $ZNUNY_BACKUP_DIR
+  echo -e "${DATE} Backup successful."
+  echo -e "Deleting older backups than ${BACKUP_ROTATION_DAYS} days."
+  find $ZNUNY_BACKUP_DIR -type f -mtime "+${BACKUP_ROTATION_DAYS}" -ls -delete
+  echo -e "Done."
+else
+  echo -e "ERROR: Backup process failed."
+  exit 1
+fi
+
+[ "${BACKUP_STOP_SERVICES}" == "yes" ] && start_all_services
+rm -fr $TEMP_BACKUP_DIR

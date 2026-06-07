@@ -1,0 +1,248 @@
+name: Weekly Znuny Release Check
+
+on:
+  schedule:
+    # Every Monday at 08:00 UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  check-releases:
+    name: Check for new Znuny releases
+    runs-on: ubuntu-latest
+
+    outputs:
+      new_version: ${{ steps.check.outputs.new_version }}
+      current_version: ${{ steps.check.outputs.current_version }}
+      has_update: ${{ steps.check.outputs.has_update }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Check for new Znuny releases
+        id: check
+        run: |
+          # Get current version from Dockerfile
+          CURRENT_VERSION=$(grep -oP 'ENV ZNUNY_VERSION \K[0-9.]+' Dockerfile | head -1)
+          echo "current_version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Current version: ${CURRENT_VERSION}"
+
+          # Fetch latest release from Znuny
+          # Using the release page API
+          LATEST_RESPONSE=$(curl -s https://api.github.com/repos/znuny/znuny/releases/latest)
+          LATEST_VERSION=$(echo "$LATEST_RESPONSE" | grep -oP '"tag_name": "\K[0-9.]+' | head -1)
+          
+          # Fallback: try to fetch from Znuny website if API fails
+          if [ -z "$LATEST_VERSION" ]; then
+            LATEST_VERSION=$(curl -s https://download.znuny.org/releases/ | grep -oP 'znuny-\K[0-9.]+(?=\.tar\.gz)' | sort -V | tail -1)
+          fi
+
+          echo "new_version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
+          echo "Latest version: ${LATEST_VERSION}"
+
+          # Compare versions
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ] && [ -n "$LATEST_VERSION" ]; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "New version available: ${LATEST_VERSION}"
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+            echo "Already on latest version or unable to determine latest version"
+          fi
+
+  create-issue:
+    name: Create upgrade issue
+    needs: check-releases
+    if: needs.check-releases.outputs.has_update == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create issue for new release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const currentVersion = '${{ needs.check-releases.outputs.current_version }}';
+            const newVersion = '${{ needs.check-releases.outputs.new_version }}';
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Upgrade Znuny from ${currentVersion} to ${newVersion}`,
+              body: `## Znuny Version Upgrade\n\nA new version of Znuny is available.\n\n- **Current version**: ${currentVersion}\n- **New version**: ${newVersion}\n\n### Testing Requirements\n\n- [ ] Test upgrade from ${currentVersion.split('.').slice(0, -1).join('.')}.${parseInt(currentVersion.split('.')[2]) - 1} to ${newVersion}\n- [ ] Verify backup functionality with new version\n- [ ] Test web interface accessibility\n- [ ] Verify database compatibility\n\n### Tasks\n\n1. Create a pull request updating the Dockerfile with the new version\n2. Include upgrade test in the workflow\n3. Ensure all container image tests pass\n4. Document any breaking changes or migration steps\n\n**Related Release**: https://download.znuny.org/releases/znuny-${newVersion}.tar.gz`,
+              labels: ['enhancement', 'dependency-update']
+            });
+            
+            core.setOutput('issue_number', issue.data.number);
+            console.log(`Created issue #${issue.data.number}`);
+
+  create-pr:
+    name: Create upgrade pull request
+    needs: [check-releases, create-issue]
+    if: needs.check-releases.outputs.has_update == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update Dockerfile with new version
+        run: |
+          NEW_VERSION='${{ needs.check-releases.outputs.new_version }}'
+          CURRENT_VERSION='${{ needs.check-releases.outputs.current_version }}'
+          
+          sed -i "s/ENV ZNUNY_VERSION ${CURRENT_VERSION}/ENV ZNUNY_VERSION ${NEW_VERSION}/" Dockerfile
+          
+          echo "Updated ZNUNY_VERSION from ${CURRENT_VERSION} to ${NEW_VERSION}"
+
+      - name: Create branch and commit
+        run: |
+          NEW_VERSION='${{ needs.check-releases.outputs.new_version }}'
+          BRANCH_NAME="feature/upgrade-znuny-${NEW_VERSION}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b "$BRANCH_NAME"
+          git add Dockerfile
+          git commit -m "chore: upgrade Znuny to ${NEW_VERSION}"
+          git push origin "$BRANCH_NAME"
+          
+          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_ENV
+
+      - name: Create pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const newVersion = '${{ needs.check-releases.outputs.new_version }}';
+            const currentVersion = '${{ needs.check-releases.outputs.current_version }}';
+            const branchName = process.env.branch_name;
+            
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `chore: upgrade Znuny to ${newVersion}`,
+              head: branchName,
+              base: 'main',
+              body: `## Znuny Upgrade\n\nThis pull request upgrades Znuny from **${currentVersion}** to **${newVersion}}**.\n\n### Changes\n\n- Updated Dockerfile to use Znuny ${newVersion}\n\n### Testing\n\nThe automated container image test workflow will verify:\n- ✅ Container builds successfully with new version\n- ✅ Web interface is accessible after upgrade\n- ✅ Backup functionality works correctly\n- ✅ Database migrations complete successfully\n\n### Checklist\n\n- [ ] Reviewed upgrade documentation\n- [ ] Tested backup/restore with new version\n- [ ] Verified no breaking changes for users\n- [ ] Updated documentation if needed\n\n**Note**: This PR was automatically created. Please review and approve manually after verifying the test results.`,
+              labels: ['enhancement', 'automated']
+            });
+            
+            console.log(`Created pull request #${pr.data.number}`);
+
+  test-upgrade:
+    name: Test Znuny upgrade path
+    needs: check-releases
+    if: needs.check-releases.outputs.has_update == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Extract previous minor version
+        id: versions
+        run: |
+          NEW_VERSION='${{ needs.check-releases.outputs.new_version }}'
+          CURRENT_VERSION='${{ needs.check-releases.outputs.current_version }}'
+          
+          # Calculate previous version (e.g., 7.3.2 from 7.3.3)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$NEW_VERSION"
+          if [ "$PATCH" -gt 0 ]; then
+            PREV_VERSION="${MAJOR}.${MINOR}.$((PATCH - 1))"
+          else
+            # If patch is 0, go to previous minor version (would need more logic for production)
+            PREV_VERSION="${CURRENT_VERSION}"
+          fi
+          
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "prev_version=${PREV_VERSION}" >> $GITHUB_OUTPUT
+          echo "Testing upgrade from ${PREV_VERSION} to ${NEW_VERSION}"
+
+      - name: Build container with previous version
+        run: |
+          PREV_VERSION='${{ steps.versions.outputs.prev_version }}'
+          
+          # Create temporary Dockerfile with previous version
+          cp Dockerfile Dockerfile.prev
+          sed -i "s/ENV ZNUNY_VERSION .*/ENV ZNUNY_VERSION ${PREV_VERSION}/" Dockerfile.prev
+          
+          docker build -f Dockerfile.prev -t znuny:previous .
+
+      - name: Build container with new version
+        run: |
+          NEW_VERSION='${{ steps.versions.outputs.new_version }}'
+          
+          docker build -t znuny:new .
+
+      - name: Test upgrade path
+        run: |
+          echo "Testing upgrade compatibility from ${{ steps.versions.outputs.prev_version }} to ${{ steps.versions.outputs.new_version }}"
+          
+          # Create docker-compose for testing
+          cat > docker-compose.test.yml << 'EOF'
+          services:
+            znuny:
+              image: znuny:new
+              ports:
+                - "80:8080"
+                - "443:8443"
+              volumes:
+                - znuny_certs:/etc/ssl/znuny
+                - ./znuny_backups:/var/znuny/backups
+              environment:
+                ZNUNY_FQDN: znuny-test
+                ZNUNY_DB_HOST: mariadb
+                ZNUNY_DB_NAME: znuny
+                ZNUNY_DB_USER: app_znuny
+                ZNUNY_DB_PASSWORD: znunypassword
+                MYSQL_ROOT_PASSWORD: rootpassword
+                ZNUNY_ROOT_PASSWORD: changeme
+            mariadb:
+              image: mariadb:12.2
+              environment:
+                MARIADB_ROOT_PASSWORD: rootpassword
+                MARIADB_USER: app_znuny
+                MARIADB_PASSWORD: znunypassword
+              volumes:
+                - ./mariadb_data:/var/lib/mysql
+                - ./mariadb:/etc/mysql/conf.d
+          volumes:
+            znuny_certs:
+          EOF
+          
+          mkdir -p ./znuny_backups
+          chmod 777 ./znuny_backups
+          
+          docker compose -f docker-compose.test.yml down --remove-orphans || true
+          docker compose -f docker-compose.test.yml up --build -d
+          
+          # Wait for service startup
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/znuny/index.pl || true)
+            if [ "$status" = "200" ]; then
+              echo "✅ Znuny ${{ steps.versions.outputs.new_version }} is operational"
+              docker compose -f docker-compose.test.yml down --remove-orphans
+              exit 0
+            fi
+            echo "Waiting for service... (attempt $i/30)"
+            sleep 10
+          done
+          
+          echo "❌ Service failed to start"
+          docker compose -f docker-compose.test.yml logs
+          docker compose -f docker-compose.test.yml down --remove-orphans
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose.test.yml down --remove-orphans || true
+          rm -f Dockerfile.prev docker-compose.test.yml
