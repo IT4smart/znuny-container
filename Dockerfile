@@ -65,6 +65,7 @@ RUN apt-get update \
         libxmlsec1-dev \
         cpanminus \
         make \
+        libapache2-mod-auth-mellon \
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
     && locale-gen \
     && cpanm Net::SAML2@0.85 \
@@ -78,13 +79,15 @@ RUN apt-get update \
     && install -Dm644 /opt/znuny/scripts/apache2-httpd.include.conf /etc/apache2/conf-available/znuny.conf \
     && sed -i 's/DirectoryIndex index.html/DirectoryIndex index.pl index.html/' /etc/apache2/mods-enabled/dir.conf \
     && a2dismod mpm_event \
-    && a2enmod mpm_prefork headers filter perl \
+    && a2enmod mpm_prefork headers filter perl auth_mellon \
     && a2enmod ssl rewrite \
     && a2enconf znuny \
     && sed -i -e 's/^[[:space:]]*Listen 80$/Listen 8080/' -e 's/^[[:space:]]*Listen 443$/Listen 8443/' /etc/apache2/ports.conf \
     && sed -i 's/^export APACHE_RUN_USER=.*/export APACHE_RUN_USER=znuny/' /etc/apache2/envvars \
     && sed -i 's/^export APACHE_RUN_GROUP=.*/export APACHE_RUN_GROUP=znuny/' /etc/apache2/envvars \
-    && setcap cap_net_bind_service=+ep /usr/sbin/apache2
+    && setcap cap_net_bind_service=+ep /usr/sbin/apache2 \
+    && mkdir -p /etc/apache2/saml \
+    && chown znuny:znuny /etc/apache2/saml
 
 COPY files/supervisord-main.conf /etc/supervisor/supervisord.conf
 COPY files/supervisord.conf /etc/supervisor/conf.d/znuny.conf
