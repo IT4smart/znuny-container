@@ -16,7 +16,7 @@ jobs:
     name: Dockerfile lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run Dockerfile linter
         uses: hadolint/hadolint-action@v3.3.0
         with:
@@ -27,7 +27,7 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Set short SHA
