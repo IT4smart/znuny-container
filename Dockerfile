@@ -2,7 +2,7 @@ FROM debian:bookworm-slim
 
 LABEL maintainer="Raphael Lekies <raphael.lekies@it4smart.com> (IT4smart GmbH)"
 
-ENV ZNUNY_VERSION 7.3.1
+ENV ZNUNY_VERSION 7.3.6
 ENV ZNUNY_ROOT "/opt/znuny/"
 ENV ZNUNY_CONFIG_MOUNT_DIR "/Kernel"
 ENV ZNUNY_SKINS_MOUNT_DIR "/skins/"
