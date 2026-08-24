@@ -60,30 +60,49 @@ jobs:
     needs: check-releases
     if: needs.check-releases.outputs.has_update == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      preexisting: ${{ steps.create_issue.outputs.preexisting }}
 
     steps:
       - name: Create issue for new release
+        id: create_issue
         uses: actions/github-script@v9
         with:
           script: |
             const currentVersion = '${{ needs.check-releases.outputs.current_version }}';
             const newVersion = '${{ needs.check-releases.outputs.new_version }}';
-            
-            const issue = await github.rest.issues.create({
+            // Check for any open issue that already mentions the new version
+            const existing = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Upgrade Znuny from ${currentVersion} to ${newVersion}`,
-              body: `## Znuny Version Upgrade\n\nA new version of Znuny is available.\n\n- **Current version**: ${currentVersion}\n- **New version**: ${newVersion}\n\n### Testing Requirements\n\n- [ ] Test upgrade from ${currentVersion.split('.').slice(0, -1).join('.')}.${parseInt(currentVersion.split('.')[2]) - 1} to ${newVersion}\n- [ ] Verify backup functionality with new version\n- [ ] Test web interface accessibility\n- [ ] Verify database compatibility\n\n### Tasks\n\n1. Create a pull request updating the Dockerfile with the new version\n2. Include upgrade test in the workflow\n3. Ensure all container image tests pass\n4. Document any breaking changes or migration steps\n\n**Related Release**: https://download.znuny.org/releases/znuny-${newVersion}.tar.gz`,
-              labels: ['enhancement', 'dependency-update']
+              state: 'open',
+              per_page: 100
             });
-            
-            core.setOutput('issue_number', issue.data.number);
-            console.log(`Created issue #${issue.data.number}`);
+
+            const match = existing.data.find(i => i.title && i.title.includes(newVersion));
+            if (match) {
+              console.log(`Found existing open issue #${match.number} for version ${newVersion}, skipping creation.`);
+              core.setOutput('issue_number', match.number);
+              core.setOutput('preexisting', 'true');
+            } else {
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Upgrade Znuny from ${currentVersion} to ${newVersion}`,
+                body: `## Znuny Version Upgrade\n\nA new version of Znuny is available.\n\n- **Current version**: ${currentVersion}\n- **New version**: ${newVersion}\n\n### Testing Requirements\n\n- [ ] Test upgrade from ${currentVersion.split('.').slice(0, -1).join('.')}.${parseInt(currentVersion.split('.')[2]) - 1} to ${newVersion}\n- [ ] Verify backup functionality with new version\n- [ ] Test web interface accessibility\n- [ ] Verify database compatibility\n\n### Tasks\n\n1. Create a pull request updating the Dockerfile with the new version\n2. Include upgrade test in the workflow\n3. Ensure all container image tests pass\n4. Document any breaking changes or migration steps\n\n**Related Release**: https://download.znuny.org/releases/znuny-${newVersion}.tar.gz`,
+                labels: ['enhancement', 'dependency-update']
+              });
+
+              core.setOutput('issue_number', issue.data.number);
+              core.setOutput('preexisting', 'false');
+              console.log(`Created issue #${issue.data.number}`);
+            }
 
   create-pr:
     name: Create upgrade pull request
     needs: [check-releases, create-issue]
-    if: needs.check-releases.outputs.has_update == 'true'
+    if: needs.check-releases.outputs.has_update == 'true' && needs.create-issue.outputs.preexisting == 'false'
     runs-on: ubuntu-latest
 
     steps:
