@@ -16,7 +16,7 @@ services:
       MYSQL_ROOT_PASSWORD: rootpassword
       ZNUNY_ROOT_PASSWORD: changeme
   mariadb:
-    image: mariadb:12.2
+    image: mariadb:12.3
     environment:
       MARIADB_ROOT_PASSWORD: rootpassword
       MARIADB_USER: app_znuny
